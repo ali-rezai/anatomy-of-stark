@@ -1,12 +1,10 @@
 use consts::*;
-use element::FieldElement;
-use field::Field;
 use primitive_types::U256;
 
 mod consts;
-mod polynomial;
 pub mod element;
 pub mod field;
+mod polynomial;
 
 pub fn xgcd(x: U256, y: U256) -> (U256, U256, U256, bool, bool) {
     let (mut old_r, mut r) = (x, y);

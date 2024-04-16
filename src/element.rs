@@ -4,7 +4,7 @@ use crate::{
 };
 use primitive_types::U256;
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub struct FieldElement<'a> {
     pub value: U256,
     pub field: &'a Field,
@@ -89,7 +89,6 @@ impl<'a> std::ops::BitXor<U256> for &FieldElement<'a> {
         acc
     }
 }
-
 
 #[cfg(test)]
 mod tests {

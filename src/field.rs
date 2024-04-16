@@ -72,7 +72,7 @@ impl<'a> Field {
         let (a, _, _, a_neg, _) = xgcd(right.value, self.p);
         FieldElement {
             value: if a_neg {
-                self.p - left.value * a
+                self.p - (left.value * a) % self.p
             } else {
                 left.value * a
             } % self.p,
@@ -111,7 +111,10 @@ mod tests {
         assert_eq!(root.value, *GENERATOR * *GENERATOR % *PRIME);
 
         let root = f.primitive_nth_root((1u128 << 117).into());
-        assert_eq!(root.value, (*GENERATOR * *GENERATOR % *PRIME) * (*GENERATOR * *GENERATOR % *PRIME) % *PRIME);
+        assert_eq!(
+            root.value,
+            (*GENERATOR * *GENERATOR % *PRIME) * (*GENERATOR * *GENERATOR % *PRIME) % *PRIME
+        );
 
         let gen = f.generator();
         assert_eq!(gen.value, *GENERATOR);
