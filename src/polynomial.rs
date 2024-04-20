@@ -69,6 +69,10 @@ impl<'a> Polynomial<'a> {
         return max_index.try_into().unwrap();
     }
 
+    pub fn is_zero(&self) -> bool {
+        self.degree() == -1
+    }
+
     pub fn leading_coefficient(&self) -> FieldElement<'a> {
         let index: usize = self.degree().try_into().unwrap();
         FieldElement::new(
@@ -279,6 +283,7 @@ mod tests {
         let f = Field::new(*PRIME);
         let poly = Polynomial::new(vec![f.zero(), f.zero()]);
         assert_eq!((-&poly).coefficients, vec![f.zero(), f.zero()]);
+        assert!(poly.is_zero());
 
         let poly1 = Polynomial::new(vec![f.one(), f.generator()]);
         assert_eq!(

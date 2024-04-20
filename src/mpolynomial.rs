@@ -1,7 +1,7 @@
 use primitive_types::U256;
 
-use crate::{element::FieldElement, field::Field, ONE, ZERO};
-use std::collections::HashMap;
+use crate::{element::FieldElement, field::Field, polynomial::Polynomial, ONE, ZERO};
+use std::{collections::HashMap, vec};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct MPolynomial<'a> {
@@ -41,6 +41,49 @@ impl<'a> MPolynomial<'a> {
         }
         variables
     }
+
+    pub fn lift(polynomial: &Polynomial<'a>, variable_index: usize) -> Self {
+        let map = HashMap::new();
+        if polynomial.is_zero() {
+            return MPolynomial::new(map);
+        }
+        let field = polynomial.coefficients[0].field;
+        let variables = MPolynomial::variables(variable_index + 1, field);
+        let x = variables.last().unwrap();
+        let mut acc = MPolynomial::new(map);
+        polynomial
+            .coefficients
+            .iter()
+            .enumerate()
+            .for_each(|(i, c)| {
+                acc = &acc + &(&MPolynomial::constant(*c) * &(x ^ i.into()));
+            });
+        acc
+    }
+
+    pub fn evaluate(&self, point: &Vec<FieldElement<'a>>) -> FieldElement<'a> {
+        let mut acc = point[0].field.zero();
+        self.coefficients.iter().for_each(|(k, v)| {
+            let mut prod = *v;
+            for i in 0..k.len() {
+                prod = &prod * &(&point[i] ^ k[i]);
+            }
+            acc = &acc + &prod;
+        });
+        acc
+    }
+
+    pub fn evaluate_symbolic(&self, point: &Vec<Polynomial<'a>>) -> Polynomial<'a> {
+        let mut acc = Polynomial::new(vec![]);
+        self.coefficients.iter().for_each(|(k, v)| {
+            let mut prod = Polynomial::new(vec![*v]);
+            for i in 0..k.len() {
+                prod = &prod * &(&point[i] ^ k[i]);
+            }
+            acc = &acc + &prod;
+        });
+        acc
+    }
 }
 
 impl<'a> std::ops::Add<&MPolynomial<'a>> for &MPolynomial<'a> {
@@ -52,13 +95,13 @@ impl<'a> std::ops::Add<&MPolynomial<'a>> for &MPolynomial<'a> {
             .coefficients
             .keys()
             .max_by_key(|k| k.len())
-            .unwrap()
+            .unwrap_or(&vec![])
             .len();
         let rhs_keys = rhs
             .coefficients
             .keys()
             .max_by_key(|k| k.len())
-            .unwrap()
+            .unwrap_or(&vec![])
             .len();
         let num_variables = usize::max(self_keys, rhs_keys);
 
@@ -115,13 +158,13 @@ impl<'a> std::ops::Mul<&MPolynomial<'a>> for &MPolynomial<'a> {
             .coefficients
             .keys()
             .max_by_key(|k| k.len())
-            .unwrap()
+            .unwrap_or(&vec![])
             .len();
         let rhs_keys = rhs
             .coefficients
             .keys()
             .max_by_key(|k| k.len())
-            .unwrap()
+            .unwrap_or(&vec![])
             .len();
         let num_variables = usize::max(self_keys, rhs_keys);
         self.coefficients.iter().for_each(|(k0, v0)| {
@@ -317,6 +360,65 @@ mod tests {
         assert_eq!(
             *sub.coefficients.get(&vec![ZERO, ZERO]).unwrap(),
             FieldElement::new(*TWO, &f)
+        );
+    }
+
+    #[test]
+    fn lift_test() {
+        let f = Field::new(*PRIME);
+        let poly = Polynomial::new(vec![f.generator(), f.one(), FieldElement::new(*TWO, &f)]);
+        let mut coefficients = HashMap::new();
+        coefficients.insert(vec![ZERO, ZERO, *TWO], FieldElement::new(*TWO, &f));
+        coefficients.insert(vec![ZERO, ZERO, ONE], f.one());
+        coefficients.insert(vec![ZERO, ZERO, ZERO], f.generator());
+        let lifted_expected = MPolynomial::new(coefficients);
+
+        let lifted = MPolynomial::lift(&poly, 2);
+        assert_eq!(lifted_expected, lifted);
+    }
+
+    #[test]
+    fn evaluate_test() {
+        let f = Field::new(*PRIME);
+        let mut coefficients = HashMap::new();
+        coefficients.insert(vec![*TWO, ONE, ONE], f.one());
+        coefficients.insert(vec![ONE, *TWO, ONE], f.generator());
+        coefficients.insert(vec![ZERO, ZERO, *TWO], FieldElement::new(*TWO, &f));
+        coefficients.insert(vec![ZERO, ZERO, ZERO], FieldElement::new(*TWO, &f));
+        let mp = MPolynomial::new(coefficients);
+
+        assert_eq!(
+            mp.evaluate(&vec![f.one(), f.generator(), f.zero()]),
+            FieldElement::new(*TWO, &f)
+        );
+        assert_eq!(
+            mp.evaluate(&vec![f.one(), f.generator(), f.generator()]),
+            &(&(&(&f.generator() ^ 2.into()) + &(&f.generator() ^ 4.into()))
+                + &(&(&f.generator() ^ *TWO) * &FieldElement::new(*TWO, &f)))
+                + &FieldElement::new(*TWO, &f)
+        );
+
+        let mut coefficients = HashMap::new();
+        coefficients.insert(vec![*TWO, ONE], f.one());
+        coefficients.insert(vec![ONE, *TWO], f.generator());
+        coefficients.insert(vec![ZERO, *TWO], FieldElement::new(*TWO, &f));
+        coefficients.insert(vec![ZERO, ZERO], FieldElement::new(*TWO, &f));
+        let mp = MPolynomial::new(coefficients);
+
+        let poly0 = Polynomial::new(vec![FieldElement::new(*TWO, &f), f.generator(), f.one()]);
+        let poly1 = Polynomial::new(vec![f.zero(), f.one()]);
+        let polys = vec![poly0, poly1];
+        assert_eq!(
+            mp.evaluate_symbolic(&polys),
+            Polynomial::new(vec![
+                FieldElement::new(*TWO, &f),
+                FieldElement::new(4.into(), &f),
+                &(&FieldElement::new(6.into(), &f) * &f.generator()) + &FieldElement::new(*TWO, &f),
+                &(&(&f.generator() ^ 2.into()) * &FieldElement::new(*TWO, &f))
+                    + &FieldElement::new(4.into(), &f),
+                &f.generator() * &FieldElement::new(3.into(), &f),
+                f.one()
+            ])
         );
     }
 }
