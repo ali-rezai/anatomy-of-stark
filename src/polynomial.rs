@@ -54,16 +54,18 @@ impl<'a> Polynomial<'a> {
         if len == 0 {
             return -1;
         }
-        let zero = self.coefficients[0].field.zero();
-        if self.coefficients.iter().all(|e| e == &zero) {
-            return -1;
-        }
         let mut max_index = 0;
+        let mut zeros = 0;
         self.coefficients.iter().enumerate().for_each(|(index, e)| {
-            if e != &zero {
-                max_index = index
+            if !e.is_zero() {
+                max_index = index;
+            } else {
+                zeros += 1;
             }
         });
+        if zeros == len {
+            return -1;
+        }
         return max_index.try_into().unwrap();
     }
 
@@ -194,9 +196,8 @@ impl<'a> std::ops::Mul<&Polynomial<'a>> for &Polynomial<'a> {
         let zero = self.coefficients[0].field.zero();
         let size = rhs.coefficients.len() + self.coefficients.len() - 1;
         let mut new_coeffs = vec![zero; size];
-        let zero = self.coefficients[0].field.zero();
         self.coefficients.iter().enumerate().for_each(|(i, e)| {
-            if e != &zero {
+            if !e.is_zero() {
                 rhs.coefficients.iter().enumerate().for_each(|(j, er)| {
                     new_coeffs[i + j] = &new_coeffs[i + j] + &(e * er);
                 });

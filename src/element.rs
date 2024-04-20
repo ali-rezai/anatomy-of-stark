@@ -21,6 +21,10 @@ impl<'a> FieldElement<'a> {
     pub fn inv(&self) -> FieldElement<'a> {
         self.field.inv(&self)
     }
+
+    pub fn is_zero(&self) -> bool {
+        self.value == ZERO
+    }
 }
 
 impl<'a> std::ops::Add<&FieldElement<'a>> for &FieldElement<'a> {
