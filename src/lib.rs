@@ -6,6 +6,7 @@ pub mod element;
 pub mod field;
 pub mod mpolynomial;
 pub mod polynomial;
+pub mod proofstream;
 
 pub fn xgcd(x: U256, y: U256) -> (U256, U256, U256, bool, bool) {
     let (mut old_r, mut r) = (x, y);
