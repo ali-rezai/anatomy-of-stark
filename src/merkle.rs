@@ -1,4 +1,5 @@
 use blake2::Blake2bVar;
+use serde::Serialize;
 use sha3::digest::{Update, VariableOutput};
 
 fn hash(data: &[u8]) -> Vec<u8> {
@@ -12,7 +13,7 @@ fn hash(data: &[u8]) -> Vec<u8> {
 pub struct Merkle {}
 
 impl Merkle {
-    pub fn commit_(leafs: &[Vec<u8>]) -> Vec<u8> {
+    fn commit_(leafs: &[Vec<u8>]) -> Vec<u8> {
         let len = leafs.len();
         assert!(len & (len - 1) == 0);
         if len == 1 {
@@ -24,7 +25,7 @@ impl Merkle {
         hash(&combined)
     }
 
-    pub fn open_(index: usize, leafs: &[Vec<u8>]) -> Vec<Vec<u8>> {
+    fn open_(index: usize, leafs: &[Vec<u8>]) -> Vec<Vec<u8>> {
         let len = leafs.len();
         assert!(len & (len - 1) == 0);
         assert!(index < len);
@@ -41,7 +42,7 @@ impl Merkle {
         }
     }
 
-    pub fn verify_(root: &[u8], index: usize, path: &[Vec<u8>], leaf: &[u8]) -> bool {
+    fn verify_(root: &[u8], index: usize, path: &[Vec<u8>], leaf: &[u8]) -> bool {
         let len = path.len();
         assert!(index < (1 << path.len()));
         let mut data;
@@ -64,29 +65,69 @@ impl Merkle {
             }
         }
     }
+
+    fn hash_data_array<T: Serialize>(data_array: &Vec<T>) -> Vec<Vec<u8>> {
+        data_array
+            .iter()
+            .map(|data| {
+                let bytes = serde_pickle::to_vec(data, Default::default()).unwrap();
+                hash(&bytes)
+            })
+            .collect()
+    }
+
+    pub fn commit<T: Serialize>(data_array: &Vec<T>) -> Vec<u8> {
+        Merkle::commit_(&Merkle::hash_data_array(data_array))
+    }
+
+    pub fn open<T: Serialize>(index: usize, data_array: &Vec<T>) -> Vec<Vec<u8>> {
+        Merkle::open_(index, &Merkle::hash_data_array(data_array))
+    }
+
+    pub fn verify<T: Serialize>(
+        root: &[u8],
+        index: usize,
+        path: &[Vec<u8>],
+        data_element: &T,
+    ) -> bool {
+        let bytes = serde_pickle::to_vec(data_element, Default::default()).unwrap();
+        let leaf = hash(&bytes);
+        Merkle::verify_(root, index, path, &leaf)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{hash, Merkle};
 
+    fn combine(a: &[u8], b: &[u8]) -> Vec<u8> {
+        let mut combined = Vec::from(a);
+        combined.extend(b);
+        combined
+    }
+
     #[test]
     fn commit_test() {
         let leafs = vec![vec![1], vec![2], vec![3], vec![4]];
-        let root = Merkle::commit_(&leafs);
+        let root = Merkle::commit(&leafs);
 
-        let mut expected_root = hash(&[1, 2]);
-        expected_root.extend(hash(&[3, 4]));
+        let hashed_leafs = Merkle::hash_data_array(&leafs);
+
+        let mut expected_root = hash(&combine(&hashed_leafs[0], &hashed_leafs[1]));
+        expected_root.extend(hash(&combine(&hashed_leafs[2], &hashed_leafs[3])));
+
         assert_eq!(root, hash(&expected_root));
     }
 
     #[test]
     fn open_test() {
         let leafs = vec![vec![1], vec![2], vec![3], vec![4]];
-        let path = Merkle::open_(1, &leafs);
+        let path = Merkle::open(1, &leafs);
 
-        let mut expected_path = vec![vec![1]];
-        expected_path.push(hash(&vec![3, 4]));
+        let hashed_leafs = Merkle::hash_data_array(&leafs);
+
+        let mut expected_path = vec![hashed_leafs[0].clone()];
+        expected_path.push(hash(&combine(&hashed_leafs[2], &hashed_leafs[3])));
 
         assert_eq!(path, expected_path);
     }
@@ -95,10 +136,10 @@ mod tests {
     fn verify_test() {
         let leafs = vec![vec![1], vec![2], vec![3], vec![4]];
 
-        let root = Merkle::commit_(&leafs);
-        let path = Merkle::open_(1, &leafs);
+        let root = Merkle::commit(&leafs);
+        let path = Merkle::open(1, &leafs);
 
-        assert!(Merkle::verify_(&root, 1, &path, &vec![2]));
-        assert!(!Merkle::verify_(&root, 2, &path, &vec![2]));
+        assert!(Merkle::verify(&root, 1, &path, &vec![2]));
+        assert!(!Merkle::verify(&root, 2, &path, &vec![2]));
     }
 }
