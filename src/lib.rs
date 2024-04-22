@@ -4,6 +4,7 @@ use primitive_types::U256;
 mod consts;
 pub mod element;
 pub mod field;
+pub mod fri;
 pub mod merkle;
 pub mod mpolynomial;
 pub mod polynomial;
