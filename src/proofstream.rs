@@ -1,25 +1,40 @@
 use serde::{Deserialize, Serialize};
 use sha3::digest::ExtendableOutput;
 
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+pub enum Object<T> {
+    HASH(Vec<u8>),
+    OBJ(T),
+}
+
 #[derive(PartialEq, Debug)]
 pub struct ProofStream<T> {
-    pub objects: Vec<T>,
+    pub objects: Vec<Object<T>>,
     pub read_index: usize,
 }
 
-impl<'a, T: Copy + Serialize + Deserialize<'a>> ProofStream<T> {
+impl<'a, T: Clone + Serialize + Deserialize<'a>> ProofStream<T> {
     pub fn new() -> Self {
         ProofStream {
             objects: vec![],
             read_index: 0,
         }
     }
-    pub fn push(&mut self, obj: T) {
+    pub fn push(&mut self, obj: Object<T>) {
         self.objects.push(obj);
     }
-    pub fn pull(&mut self) -> T {
+
+    pub fn push_hash(&mut self, hash: Vec<u8>) {
+        self.objects.push(Object::HASH(hash));
+    }
+
+    pub fn push_obj(&mut self, obj: T) {
+        self.objects.push(Object::OBJ(obj));
+    }
+
+    pub fn pull(&mut self) -> Object<T> {
         assert!(self.read_index < self.objects.len());
-        let obj = self.objects[self.read_index];
+        let obj = self.objects[self.read_index].clone();
         self.read_index += 1;
         obj
     }
@@ -54,28 +69,28 @@ impl<'a, T: Copy + Serialize + Deserialize<'a>> ProofStream<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::ProofStream;
+    use super::{Object::OBJ, ProofStream};
     use crate::{consts::*, element::FieldElement, field::Field};
 
     #[test]
     fn proofstream_test() {
         let f = Field::new(*PRIME);
         let mut ps = ProofStream::new();
-        ps.push(f.one());
-        ps.push(f.zero());
-        assert_eq!(ps.pull(), f.one());
-        ps.push(f.generator());
-        assert_eq!(ps.pull(), f.zero());
-        assert_eq!(ps.pull(), f.generator());
+        ps.push_obj(f.one());
+        ps.push_obj(f.zero());
+        assert_eq!(ps.pull(), OBJ(f.one()));
+        ps.push_obj(f.generator());
+        assert_eq!(ps.pull(), OBJ(f.zero()));
+        assert_eq!(ps.pull(), OBJ(f.generator()));
     }
 
     #[test]
     fn serialization_test() {
         let f = Field::new(*PRIME);
         let mut ps = ProofStream::new();
-        ps.push(f.one());
-        ps.push(f.zero());
-        ps.push(f.generator());
+        ps.push_obj(f.one());
+        ps.push_obj(f.zero());
+        ps.push_obj(f.generator());
 
         let v = ps.serialize();
         let d: ProofStream<FieldElement> = ProofStream::deserialize(&v);
@@ -86,9 +101,9 @@ mod tests {
     fn verification_test() {
         let f = Field::new(*PRIME);
         let mut ps = ProofStream::new();
-        ps.push(f.one());
-        ps.push(f.zero());
-        ps.push(f.generator());
+        ps.push_obj(f.one());
+        ps.push_obj(f.zero());
+        ps.push_obj(f.generator());
 
         let prove0 = ps.prover_fiat_shamir(32);
         let verify0 = ps.verifier_fiat_shamir(32);
