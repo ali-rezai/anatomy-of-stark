@@ -1,22 +1,36 @@
 use crate::{consts::*, element::FieldElement, xgcd};
 use primitive_types::U256;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub struct Field {
     pub p: U256,
 }
 
-impl<'a> Field {
+impl Field {
     pub fn new(p: U256) -> Self {
-        Field { p: p }
+        Field { p }
     }
 
-    pub fn generator(&'a self) -> FieldElement<'a> {
+    pub fn zero(&self) -> FieldElement {
+        FieldElement {
+            value: ZERO,
+            field: *self,
+        }
+    }
+
+    pub fn one(&self) -> FieldElement {
+        FieldElement {
+            value: ONE,
+            field: *self,
+        }
+    }
+
+    pub fn generator(&self) -> FieldElement {
         assert!(self.p == *PRIME);
-        return FieldElement::new(*GENERATOR, self);
+        return FieldElement::new(*GENERATOR, *self);
     }
 
-    pub fn primitive_nth_root(&'a self, n: U256) -> FieldElement<'a> {
+    pub fn primitive_nth_root(&self, n: U256) -> FieldElement {
         assert!(self.p == *PRIME);
         assert!(n <= (1u128 << 119).into() && n & (n - 1) == ZERO);
         let mut root = self.generator();
@@ -28,46 +42,33 @@ impl<'a> Field {
         root
     }
 
-    pub fn sample(&'a self, byte_array: &[u8]) -> FieldElement<'a> {
+    pub fn sample(&self, byte_array: &[u8]) -> FieldElement {
         let mut acc: U256 = ZERO;
         byte_array.iter().for_each(|b| {
             acc = (acc << 8) ^ (*b).into();
         });
-        FieldElement::new(acc % self.p, self)
+        FieldElement::new(acc % self.p, *self)
     }
 
-    pub fn zero(&'a self) -> FieldElement<'a> {
-        FieldElement {
-            value: ZERO,
-            field: self,
-        }
-    }
-    pub fn one(&'a self) -> FieldElement<'a> {
-        FieldElement {
-            value: ONE,
-            field: self,
-        }
-    }
-
-    pub fn add(&'a self, left: &FieldElement, right: &FieldElement) -> FieldElement<'a> {
+    pub fn add(&self, left: &FieldElement, right: &FieldElement) -> FieldElement {
         FieldElement {
             value: (left.value + right.value) % self.p,
-            field: self,
+            field: *self,
         }
     }
-    pub fn sub(&'a self, left: &FieldElement, right: &FieldElement) -> FieldElement<'a> {
+    pub fn sub(&self, left: &FieldElement, right: &FieldElement) -> FieldElement {
         FieldElement {
             value: (self.p + left.value - right.value) % self.p,
-            field: self,
+            field: *self,
         }
     }
-    pub fn mul(&'a self, left: &FieldElement, right: &FieldElement) -> FieldElement<'a> {
+    pub fn mul(&self, left: &FieldElement, right: &FieldElement) -> FieldElement {
         FieldElement {
             value: (left.value * right.value) % self.p,
-            field: self,
+            field: *self,
         }
     }
-    pub fn div(&'a self, left: &FieldElement, right: &FieldElement) -> FieldElement<'a> {
+    pub fn div(&self, left: &FieldElement, right: &FieldElement) -> FieldElement {
         assert!(right.value != ZERO);
         let (a, _, _, a_neg, _) = xgcd(right.value, self.p);
         FieldElement {
@@ -76,21 +77,21 @@ impl<'a> Field {
             } else {
                 left.value * a
             } % self.p,
-            field: self,
+            field: *self,
         }
     }
-    pub fn neg(&'a self, operand: &FieldElement) -> FieldElement<'a> {
+    pub fn neg(&self, operand: &FieldElement) -> FieldElement {
         FieldElement {
             value: (self.p - operand.value) % self.p,
-            field: self,
+            field: *self,
         }
     }
 
-    pub fn inv(&'a self, operand: &FieldElement) -> FieldElement<'a> {
+    pub fn inv(&self, operand: &FieldElement) -> FieldElement {
         let (a, _, _, a_neg, _) = xgcd(operand.value, self.p);
         FieldElement {
             value: if a_neg { self.p - a } else { a } % self.p,
-            field: self,
+            field: *self,
         }
     }
 }

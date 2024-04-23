@@ -5,20 +5,17 @@ use crate::{
 use primitive_types::U256;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
-pub struct FieldElement<'a> {
+pub struct FieldElement {
     pub value: U256,
-    pub field: &'a Field,
+    pub field: Field,
 }
 
-impl<'a> FieldElement<'a> {
-    pub fn new(value: U256, field: &'a Field) -> Self {
-        FieldElement {
-            value: value,
-            field: field,
-        }
+impl FieldElement {
+    pub fn new(value: U256, field: Field) -> Self {
+        FieldElement { value, field }
     }
 
-    pub fn inv(&self) -> FieldElement<'a> {
+    pub fn inv(&self) -> FieldElement {
         self.field.inv(&self)
     }
 
@@ -27,50 +24,50 @@ impl<'a> FieldElement<'a> {
     }
 }
 
-impl<'a> std::ops::Add<&FieldElement<'a>> for &FieldElement<'a> {
-    type Output = FieldElement<'a>;
+impl std::ops::Add<&FieldElement> for &FieldElement {
+    type Output = FieldElement;
 
-    fn add(self, rhs: &FieldElement<'a>) -> FieldElement<'a> {
+    fn add(self, rhs: &FieldElement) -> FieldElement {
         self.field.add(self, rhs)
     }
 }
 
-impl<'a> std::ops::Sub<&FieldElement<'a>> for &FieldElement<'a> {
-    type Output = FieldElement<'a>;
+impl std::ops::Sub<&FieldElement> for &FieldElement {
+    type Output = FieldElement;
 
-    fn sub(self, rhs: &FieldElement<'a>) -> FieldElement<'a> {
+    fn sub(self, rhs: &FieldElement) -> FieldElement {
         self.field.sub(self, rhs)
     }
 }
 
-impl<'a> std::ops::Mul<&FieldElement<'a>> for &FieldElement<'a> {
-    type Output = FieldElement<'a>;
+impl std::ops::Mul<&FieldElement> for &FieldElement {
+    type Output = FieldElement;
 
-    fn mul(self, rhs: &FieldElement<'a>) -> FieldElement<'a> {
+    fn mul(self, rhs: &FieldElement) -> FieldElement {
         self.field.mul(self, rhs)
     }
 }
 
-impl<'a> std::ops::Div<&FieldElement<'a>> for &FieldElement<'a> {
-    type Output = FieldElement<'a>;
+impl std::ops::Div<&FieldElement> for &FieldElement {
+    type Output = FieldElement;
 
-    fn div(self, rhs: &FieldElement<'a>) -> FieldElement<'a> {
+    fn div(self, rhs: &FieldElement) -> FieldElement {
         self.field.div(self, rhs)
     }
 }
 
-impl<'a> std::ops::Neg for &FieldElement<'a> {
-    type Output = FieldElement<'a>;
+impl std::ops::Neg for &FieldElement {
+    type Output = FieldElement;
 
-    fn neg(self) -> FieldElement<'a> {
+    fn neg(self) -> FieldElement {
         self.field.neg(self)
     }
 }
 
-impl<'a> std::ops::BitXor<U256> for &FieldElement<'a> {
-    type Output = FieldElement<'a>;
+impl std::ops::BitXor<U256> for &FieldElement {
+    type Output = FieldElement;
 
-    fn bitxor(self, rhs: U256) -> FieldElement<'a> {
+    fn bitxor(self, rhs: U256) -> FieldElement {
         let mut acc = self.field.one();
 
         let mut i: U256 = 128.into();
@@ -101,9 +98,9 @@ mod tests {
     #[test]
     fn element_test() {
         let f = Field::new(7.into());
-        let e1 = FieldElement::new(ONE, &f);
-        let e2 = FieldElement::new(3.into(), &f);
-        let e3 = FieldElement::new(3.into(), &f);
+        let e1 = FieldElement::new(ONE, f);
+        let e2 = FieldElement::new(3.into(), f);
+        let e3 = FieldElement::new(3.into(), f);
         assert_eq!(e1.field, e2.field);
         assert_eq!(e1.value, ONE);
         assert_eq!(e2.value, 3.into());
@@ -114,8 +111,8 @@ mod tests {
     #[test]
     fn arithmetic_test() {
         let f = Field::new(7.into());
-        let e1 = FieldElement::new(ONE, &f);
-        let e2 = FieldElement::new(3.into(), &f);
+        let e1 = FieldElement::new(ONE, f);
+        let e2 = FieldElement::new(3.into(), f);
         assert_eq!((&e1 + &e2).value, 4.into());
         assert_eq!((&e1 - &e2).value, 5.into());
         assert_eq!((&e1 * &e2).value, 3.into());

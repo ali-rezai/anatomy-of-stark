@@ -1,18 +1,18 @@
 use crate::{element::FieldElement, field::Field};
 
-pub struct FRI<'a> {
-    pub offset: FieldElement<'a>,
-    pub omega: FieldElement<'a>,
+pub struct FRI {
+    pub offset: FieldElement,
+    pub omega: FieldElement,
     pub domain_length: usize,
-    pub field: &'a Field,
+    pub field: Field,
     pub expansion_factor: usize,
     pub num_colinearity_tests: usize,
 }
 
-impl<'a> FRI<'a> {
+impl FRI {
     pub fn new(
-        offset: FieldElement<'a>,
-        omega: FieldElement<'a>,
+        offset: FieldElement,
+        omega: FieldElement,
         initial_domain_length: usize,
         expansion_factor: usize,
         num_colinearity_tests: usize,
@@ -39,7 +39,7 @@ impl<'a> FRI<'a> {
         num_rounds
     }
 
-    pub fn eval_domain(&self) -> Vec<FieldElement<'a>> {
+    pub fn eval_domain(&self) -> Vec<FieldElement> {
         (0..self.domain_length)
             .map(|i| &self.offset * &(&self.omega ^ i.into()))
             .collect()
@@ -61,8 +61,8 @@ mod tests {
         let fri = FRI::new(f.one(), f.generator(), 16, 2, 1);
         assert_eq!(fri.num_rounds(), 2);
 
-        let fri = FRI::new(FieldElement::new(*TWO, &f), f.generator(), 3, 2, 1);
-        let two = FieldElement::new(*TWO, &f);
+        let fri = FRI::new(FieldElement::new(*TWO, f), f.generator(), 3, 2, 1);
+        let two = FieldElement::new(*TWO, f);
         assert_eq!(
             fri.eval_domain(),
             vec![two, &two * &f.generator(), &two * &(&f.generator() ^ *TWO)]

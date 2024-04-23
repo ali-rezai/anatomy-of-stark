@@ -2,14 +2,11 @@ use crate::{element::FieldElement, ONE, ZERO};
 use primitive_types::U256;
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct Polynomial<'a> {
-    pub coefficients: Vec<FieldElement<'a>>,
+pub struct Polynomial {
+    pub coefficients: Vec<FieldElement>,
 }
 
-fn divide<'a>(
-    numerator: &Polynomial<'a>,
-    denominator: &Polynomial<'a>,
-) -> Option<(Polynomial<'a>, Polynomial<'a>)> {
+fn divide(numerator: &Polynomial, denominator: &Polynomial) -> Option<(Polynomial, Polynomial)> {
     if denominator.degree() == -1 {
         return None;
     }
@@ -44,8 +41,8 @@ fn divide<'a>(
     return Some((quotient, remainder));
 }
 
-impl<'a> Polynomial<'a> {
-    pub fn new(coefficients: Vec<FieldElement<'a>>) -> Self {
+impl Polynomial {
+    pub fn new(coefficients: Vec<FieldElement>) -> Self {
         Polynomial { coefficients }
     }
 
@@ -73,7 +70,7 @@ impl<'a> Polynomial<'a> {
         self.degree() == -1
     }
 
-    pub fn leading_coefficient(&self) -> FieldElement<'a> {
+    pub fn leading_coefficient(&self) -> FieldElement {
         let index: usize = self.degree().try_into().unwrap();
         FieldElement::new(
             self.coefficients[index].value,
@@ -81,9 +78,9 @@ impl<'a> Polynomial<'a> {
         )
     }
 
-    pub fn evaluate(&self, point: &FieldElement<'a>) -> FieldElement<'a> {
-        let mut xi: FieldElement<'a> = point.field.one();
-        let mut value: FieldElement<'a> = point.field.zero();
+    pub fn evaluate(&self, point: &FieldElement) -> FieldElement {
+        let mut xi: FieldElement = point.field.one();
+        let mut value: FieldElement = point.field.zero();
         self.coefficients.iter().for_each(|c| {
             value = &value + &(c * &xi);
             xi = &xi * point;
@@ -91,14 +88,11 @@ impl<'a> Polynomial<'a> {
         value
     }
 
-    pub fn evaluate_domain(&self, domain: &Vec<FieldElement<'a>>) -> Vec<FieldElement<'a>> {
+    pub fn evaluate_domain(&self, domain: &Vec<FieldElement>) -> Vec<FieldElement> {
         domain.iter().map(|point| self.evaluate(point)).collect()
     }
 
-    pub fn interpolate_domain(
-        domain: &Vec<FieldElement<'a>>,
-        values: &Vec<FieldElement<'a>>,
-    ) -> Self {
+    pub fn interpolate_domain(domain: &Vec<FieldElement>, values: &Vec<FieldElement>) -> Self {
         assert!(domain.len() == values.len());
         assert!(domain.len() > 0);
         let field = domain[0].field;
@@ -118,7 +112,7 @@ impl<'a> Polynomial<'a> {
         acc
     }
 
-    pub fn zerofier_domain(domain: &Vec<FieldElement<'a>>) -> Self {
+    pub fn zerofier_domain(domain: &Vec<FieldElement>) -> Self {
         assert!(domain.len() > 0);
         let field = domain[0].field;
         let x = Polynomial::new(vec![field.zero(), field.one()]);
@@ -129,7 +123,7 @@ impl<'a> Polynomial<'a> {
         acc
     }
 
-    pub fn scale(&self, factor: FieldElement<'a>) -> Self {
+    pub fn scale(&self, factor: FieldElement) -> Self {
         Polynomial::new(
             self.coefficients
                 .iter()
@@ -140,17 +134,17 @@ impl<'a> Polynomial<'a> {
     }
 
     pub fn test_colinearity(points: &Vec<(FieldElement, FieldElement)>) -> bool {
-        let domain: Vec<FieldElement<'_>> = points.iter().map(|p| p.0).collect();
-        let values: Vec<FieldElement<'_>> = points.iter().map(|p| p.1).collect();
+        let domain: Vec<FieldElement> = points.iter().map(|p| p.0).collect();
+        let values: Vec<FieldElement> = points.iter().map(|p| p.1).collect();
         let poly = Polynomial::interpolate_domain(&domain, &values);
         poly.degree() <= 1
     }
 }
 
-impl<'a> std::ops::Add<&Polynomial<'a>> for &Polynomial<'a> {
-    type Output = Polynomial<'a>;
+impl std::ops::Add<&Polynomial> for &Polynomial {
+    type Output = Polynomial;
 
-    fn add(self, rhs: &Polynomial<'a>) -> Polynomial<'a> {
+    fn add(self, rhs: &Polynomial) -> Polynomial {
         if self.degree() == -1 {
             return rhs.clone();
         } else if rhs.degree() == -1 {
@@ -173,27 +167,27 @@ impl<'a> std::ops::Add<&Polynomial<'a>> for &Polynomial<'a> {
     }
 }
 
-impl<'a> std::ops::Neg for &Polynomial<'a> {
-    type Output = Polynomial<'a>;
+impl std::ops::Neg for &Polynomial {
+    type Output = Polynomial;
 
-    fn neg(self) -> Polynomial<'a> {
-        let new_coeffs: Vec<FieldElement<'a>> = self.coefficients.iter().map(|e| -e).collect();
+    fn neg(self) -> Polynomial {
+        let new_coeffs: Vec<FieldElement> = self.coefficients.iter().map(|e| -e).collect();
         Polynomial::new(new_coeffs)
     }
 }
 
-impl<'a> std::ops::Sub<&Polynomial<'a>> for &Polynomial<'a> {
-    type Output = Polynomial<'a>;
+impl std::ops::Sub<&Polynomial> for &Polynomial {
+    type Output = Polynomial;
 
-    fn sub(self, rhs: &Polynomial<'a>) -> Polynomial<'a> {
+    fn sub(self, rhs: &Polynomial) -> Polynomial {
         self + &(-rhs)
     }
 }
 
-impl<'a> std::ops::Mul<&Polynomial<'a>> for &Polynomial<'a> {
-    type Output = Polynomial<'a>;
+impl std::ops::Mul<&Polynomial> for &Polynomial {
+    type Output = Polynomial;
 
-    fn mul(self, rhs: &Polynomial<'a>) -> Polynomial<'a> {
+    fn mul(self, rhs: &Polynomial) -> Polynomial {
         if self.coefficients.len() == 0 || rhs.coefficients.len() == 0 {
             return Polynomial::new(vec![]);
         }
@@ -211,10 +205,10 @@ impl<'a> std::ops::Mul<&Polynomial<'a>> for &Polynomial<'a> {
     }
 }
 
-impl<'a> std::ops::Div<&Polynomial<'a>> for &Polynomial<'a> {
-    type Output = Polynomial<'a>;
+impl std::ops::Div<&Polynomial> for &Polynomial {
+    type Output = Polynomial;
 
-    fn div(self, rhs: &Polynomial<'a>) -> Polynomial<'a> {
+    fn div(self, rhs: &Polynomial) -> Polynomial {
         if let Some((quotient, remainder)) = divide(self, rhs) {
             assert!(remainder.degree() != -1);
             return quotient;
@@ -224,10 +218,10 @@ impl<'a> std::ops::Div<&Polynomial<'a>> for &Polynomial<'a> {
     }
 }
 
-impl<'a> std::ops::BitXor<U256> for &Polynomial<'a> {
-    type Output = Polynomial<'a>;
+impl std::ops::BitXor<U256> for &Polynomial {
+    type Output = Polynomial;
 
-    fn bitxor(self, rhs: U256) -> Polynomial<'a> {
+    fn bitxor(self, rhs: U256) -> Polynomial {
         if self.degree() == -1 {
             return Polynomial::new(vec![]);
         }
@@ -289,8 +283,8 @@ mod tests {
         assert_eq!(
             (-&poly1).coefficients,
             vec![
-                FieldElement::new(*PRIME - ONE, &f),
-                FieldElement::new(*PRIME - *GENERATOR, &f)
+                FieldElement::new(*PRIME - ONE, f),
+                FieldElement::new(*PRIME - *GENERATOR, f)
             ]
         );
 
@@ -298,22 +292,22 @@ mod tests {
         assert_eq!(
             (&poly1 + &poly2).coefficients,
             vec![
-                FieldElement::new(*GENERATOR + ONE, &f),
-                FieldElement::new(*GENERATOR + ONE, &f)
+                FieldElement::new(*GENERATOR + ONE, f),
+                FieldElement::new(*GENERATOR + ONE, f)
             ]
         );
         assert_eq!(
             (&poly1 - &poly2).coefficients,
             vec![
-                FieldElement::new(*PRIME + ONE - *GENERATOR, &f),
-                FieldElement::new(*GENERATOR - ONE, &f)
+                FieldElement::new(*PRIME + ONE - *GENERATOR, f),
+                FieldElement::new(*GENERATOR - ONE, f)
             ]
         );
         assert_eq!(
             (&poly1 * &poly2).coefficients,
             vec![
                 f.generator(),
-                FieldElement::new((*GENERATOR * *GENERATOR) % f.p + ONE, &f),
+                FieldElement::new((*GENERATOR * *GENERATOR) % f.p + ONE, f),
                 f.generator()
             ]
         );
@@ -332,22 +326,22 @@ mod tests {
     fn evaluate_test() {
         let f = Field::new(*PRIME);
         let poly1 = Polynomial::new(vec![f.zero(), f.zero()]);
-        let poly2 = Polynomial::new(vec![f.generator(), f.one(), FieldElement::new(*TWO, &f)]);
+        let poly2 = Polynomial::new(vec![f.generator(), f.one(), FieldElement::new(*TWO, f)]);
 
-        let point1 = FieldElement::new(134.into(), &f);
-        let point2 = FieldElement::new(1932.into(), &f);
+        let point1 = FieldElement::new(134.into(), f);
+        let point2 = FieldElement::new(1932.into(), f);
         assert_eq!(poly1.evaluate(&point1), f.zero(),);
 
         assert_eq!(
             poly2.evaluate(&point1),
-            &(&(&FieldElement::new(*TWO, &f) * &(&point1 ^ *TWO)) + &point1) + &f.generator(),
+            &(&(&FieldElement::new(*TWO, f) * &(&point1 ^ *TWO)) + &point1) + &f.generator(),
         );
 
         assert_eq!(
             poly2.evaluate_domain(&vec![point1, point2]),
             vec![
-                &(&(&FieldElement::new(*TWO, &f) * &(&point1 ^ *TWO)) + &point1) + &f.generator(),
-                &(&(&FieldElement::new(*TWO, &f) * &(&point2 ^ *TWO)) + &point2) + &f.generator()
+                &(&(&FieldElement::new(*TWO, f) * &(&point1 ^ *TWO)) + &point1) + &f.generator(),
+                &(&(&FieldElement::new(*TWO, f) * &(&point2 ^ *TWO)) + &point2) + &f.generator()
             ]
         );
     }
@@ -355,16 +349,16 @@ mod tests {
     #[test]
     fn interpolate_test() {
         let f = Field::new(*PRIME);
-        let point1 = FieldElement::new(134.into(), &f);
-        let point2 = FieldElement::new(1932.into(), &f);
+        let point1 = FieldElement::new(134.into(), f);
+        let point2 = FieldElement::new(1932.into(), f);
 
         let interpolated =
             Polynomial::interpolate_domain(&vec![point1, point2], &vec![f.one(), f.generator()]);
         assert_eq!(
             interpolated,
             Polynomial::new(vec![
-                FieldElement::new(156715821677969870210199381849610144059u128.into(), &f),
-                FieldElement::new(144172632631064309698331206458044765549u128.into(), &f)
+                FieldElement::new(156715821677969870210199381849610144059u128.into(), f),
+                FieldElement::new(144172632631064309698331206458044765549u128.into(), f)
             ])
         );
         assert_eq!(interpolated.evaluate(&point1), f.one());
@@ -374,8 +368,8 @@ mod tests {
         assert_eq!(
             zero_interpolated,
             Polynomial::new(vec![
-                FieldElement::new(258888.into(), &f),
-                FieldElement::new(270497897142230380135924736767050119151u128.into(), &f),
+                FieldElement::new(258888.into(), f),
+                FieldElement::new(270497897142230380135924736767050119151u128.into(), f),
                 f.one()
             ])
         );
@@ -386,11 +380,11 @@ mod tests {
     #[test]
     fn scale_test() {
         let f = Field::new(*PRIME);
-        let point1 = FieldElement::new(134.into(), &f);
-        let point2 = FieldElement::new(1932.into(), &f);
+        let point1 = FieldElement::new(134.into(), f);
+        let point2 = FieldElement::new(1932.into(), f);
         let poly = Polynomial::zerofier_domain(&vec![point1, point2]);
 
-        let scale = FieldElement::new(*TWO, &f);
+        let scale = FieldElement::new(*TWO, f);
         let scaled_poly = poly.scale(scale);
 
         assert_eq!(scaled_poly.coefficients[0], poly.coefficients[0]);
@@ -420,8 +414,8 @@ mod tests {
     fn colinearity_test() {
         let f = Field::new(*PRIME);
         let point1 = (f.one(), f.zero());
-        let point2 = (FieldElement::new(*TWO, &f), f.one());
-        let point3 = (FieldElement::new(3.into(), &f), FieldElement::new(*TWO, &f));
+        let point2 = (FieldElement::new(*TWO, f), f.one());
+        let point3 = (FieldElement::new(3.into(), f), FieldElement::new(*TWO, f));
         let point4 = (f.generator(), f.one());
 
         assert_eq!(Polynomial::test_colinearity(&vec![point1, point2]), true);
