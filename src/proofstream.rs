@@ -4,6 +4,8 @@ use sha3::digest::ExtendableOutput;
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub enum Object<T> {
     HASH(Vec<u8>),
+    PATH(Vec<Vec<u8>>),
+    LEAF(T),
     OBJ(T),
 }
 
@@ -30,6 +32,14 @@ impl<'a, T: Clone + Serialize + Deserialize<'a>> ProofStream<T> {
 
     pub fn push_obj(&mut self, obj: T) {
         self.objects.push(Object::OBJ(obj));
+    }
+
+    pub fn push_path(&mut self, path: Vec<Vec<u8>>) {
+        self.objects.push(Object::PATH(path));
+    }
+
+    pub fn push_leafs(&mut self, leaf_index: T) {
+        self.objects.push(Object::LEAF(leaf_index));
     }
 
     pub fn pull(&mut self) -> Object<T> {
