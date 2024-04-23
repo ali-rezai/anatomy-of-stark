@@ -1,5 +1,12 @@
 use crate::{consts::*, element::FieldElement, xgcd};
 use primitive_types::U256;
+use serde::{
+    de,
+    de::{MapAccess, Visitor},
+    ser::SerializeStruct,
+    Deserialize, Serialize,
+};
+use std::fmt;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub struct Field {
@@ -96,6 +103,107 @@ impl Field {
     }
 }
 
+impl Serialize for Field {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut s = serializer.serialize_struct("Field", 4)?;
+        s.serialize_field("llow", &((self.p).low_u64() as i64))?;
+        s.serialize_field("hlow", &((self.p >> 64).low_u64() as i64))?;
+        s.serialize_field("lhigh", &((self.p >> 128).low_u64() as i64))?;
+        s.serialize_field("hhigh", &((self.p >> 192).low_u64() as i64))?;
+
+        s.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Field {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "lowercase")]
+        enum Fields {
+            LLOW,
+            HLOW,
+            LHIGH,
+            HHIGH,
+        }
+
+        struct FieldVisitor;
+        impl<'de> Visitor<'de> for FieldVisitor {
+            type Value = Field;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("Field struct")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Field, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut llow: Option<u64> = None;
+                let mut hlow: Option<u64> = None;
+                let mut lhigh: Option<u64> = None;
+                let mut hhigh: Option<u64> = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Fields::LLOW => {
+                            if llow.is_some() {
+                                return Err(de::Error::duplicate_field("llow"));
+                            }
+                            let v: i64 = map.next_value()?;
+                            llow = Some(v as u64);
+                        }
+                        Fields::HLOW => {
+                            if hlow.is_some() {
+                                return Err(de::Error::duplicate_field("hlow"));
+                            }
+                            let v: i64 = map.next_value()?;
+                            hlow = Some(v as u64);
+                        }
+                        Fields::LHIGH => {
+                            if lhigh.is_some() {
+                                return Err(de::Error::duplicate_field("lhigh"));
+                            }
+                            let v: i64 = map.next_value()?;
+                            lhigh = Some(v as u64);
+                        }
+                        Fields::HHIGH => {
+                            if hhigh.is_some() {
+                                return Err(de::Error::duplicate_field("hhigh"));
+                            }
+                            let v: i64 = map.next_value()?;
+                            hhigh = Some(v as u64);
+                        }
+                    }
+                }
+
+                let mut p: U256 = llow.ok_or_else(|| de::Error::missing_field("llow"))?.into();
+                let hlow: U256 = hlow.ok_or_else(|| de::Error::missing_field("hlow"))?.into();
+                let lhigh: U256 = lhigh
+                    .ok_or_else(|| de::Error::missing_field("lhigh"))?
+                    .into();
+                let hhigh: U256 = hhigh
+                    .ok_or_else(|| de::Error::missing_field("hhigh"))?
+                    .into();
+
+                p = p | (hlow << 64);
+                p = p | (lhigh << 128);
+                p = p | (hhigh << 192);
+
+                Ok(Field { p })
+            }
+        }
+
+        const FIELDS: &[&str] = &["llow", "hlow", "lhigh", "hhigh"];
+        deserializer.deserialize_struct("Field", FIELDS, FieldVisitor)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -122,5 +230,14 @@ mod tests {
 
         let s = f.sample(&[1u8, 2u8, 3u8]);
         assert_eq!(s.value, 66051.into());
+    }
+
+    #[test]
+    fn serialization_test() {
+        let f = Field::new(*PRIME);
+        let serialized = serde_pickle::to_vec(&f, Default::default()).unwrap();
+        let deserialized: Field =
+            serde_pickle::from_slice(&serialized, Default::default()).unwrap();
+        assert_eq!(f, deserialized);
     }
 }

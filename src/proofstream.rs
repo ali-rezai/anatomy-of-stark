@@ -35,7 +35,7 @@ impl<'a, T: Copy + Serialize + Deserialize<'a>> ProofStream<T> {
         }
     }
 
-    pub fn prove_fiat_shamir(&self, num_bytes: usize) -> Vec<u8> {
+    pub fn prover_fiat_shamir(&self, num_bytes: usize) -> Vec<u8> {
         let mut output = vec![0u8; num_bytes];
         sha3::Shake256::digest_xof(&self.serialize(), &mut output);
         output
@@ -55,45 +55,49 @@ impl<'a, T: Copy + Serialize + Deserialize<'a>> ProofStream<T> {
 #[cfg(test)]
 mod tests {
     use super::ProofStream;
+    use crate::{consts::*, element::FieldElement, field::Field};
 
     #[test]
     fn proofstream_test() {
+        let f = Field::new(*PRIME);
         let mut ps = ProofStream::new();
-        ps.push(1);
-        ps.push(7);
-        assert_eq!(ps.pull(), 1);
-        ps.push(9);
-        assert_eq!(ps.pull(), 7);
-        assert_eq!(ps.pull(), 9);
+        ps.push(f.one());
+        ps.push(f.zero());
+        assert_eq!(ps.pull(), f.one());
+        ps.push(f.generator());
+        assert_eq!(ps.pull(), f.zero());
+        assert_eq!(ps.pull(), f.generator());
     }
 
     #[test]
     fn serialization_test() {
-        let mut ps: ProofStream<i32> = ProofStream::new();
-        ps.push(1);
-        ps.push(7);
-        ps.push(9);
+        let f = Field::new(*PRIME);
+        let mut ps = ProofStream::new();
+        ps.push(f.one());
+        ps.push(f.zero());
+        ps.push(f.generator());
 
         let v = ps.serialize();
-        let d: ProofStream<i32> = ProofStream::deserialize(&v);
+        let d: ProofStream<FieldElement> = ProofStream::deserialize(&v);
         assert_eq!(ps, d);
     }
 
     #[test]
     fn verification_test() {
-        let mut ps: ProofStream<i32> = ProofStream::new();
-        ps.push(1);
-        ps.push(7);
-        ps.push(9);
+        let f = Field::new(*PRIME);
+        let mut ps = ProofStream::new();
+        ps.push(f.one());
+        ps.push(f.zero());
+        ps.push(f.generator());
 
-        let prove0 = ps.prove_fiat_shamir(32);
+        let prove0 = ps.prover_fiat_shamir(32);
         let verify0 = ps.verifier_fiat_shamir(32);
         assert_ne!(prove0, verify0);
 
         ps.pull();
         ps.pull();
         ps.pull();
-        let prove1 = ps.prove_fiat_shamir(32);
+        let prove1 = ps.prover_fiat_shamir(32);
         let verify1 = ps.verifier_fiat_shamir(32);
         assert_eq!(prove0, prove1);
         assert_eq!(prove1, verify1);
