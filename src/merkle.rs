@@ -2,7 +2,7 @@ use blake2::Blake2bVar;
 use serde::Serialize;
 use sha3::digest::{Update, VariableOutput};
 
-fn hash(data: &[u8]) -> Vec<u8> {
+pub fn hash(data: &[u8]) -> Vec<u8> {
     let mut hasher = Blake2bVar::new(32).unwrap();
     hasher.update(data);
     let mut out = vec![0; 32];
@@ -46,10 +46,9 @@ impl Merkle {
         let len = path.len();
         assert!(index < (1 << path.len()));
         let mut data;
-        if index == 0 {
+        if index % 2 == 0 {
             data = Vec::from(leaf);
             data.extend(&path[0]);
-            return root == hash(&data);
         } else {
             data = path[0].clone();
             data.extend(leaf);
@@ -58,11 +57,7 @@ impl Merkle {
         if len == 1 {
             return root == hash;
         } else {
-            if index % 2 == 0 {
-                return Merkle::verify_(root, index >> 1, &path[1..], &hash);
-            } else {
-                return Merkle::verify_(root, index >> 1, &path[1..], &hash);
-            }
+            return Merkle::verify_(root, index >> 1, &path[1..], &hash);
         }
     }
 
@@ -137,8 +132,11 @@ mod tests {
         let leafs = vec![vec![1], vec![2], vec![3], vec![4]];
 
         let root = Merkle::commit(&leafs);
-        let path = Merkle::open(1, &leafs);
 
+        let path = Merkle::open(0, &leafs);
+        assert!(Merkle::verify(&root, 0, &path, &vec![1]));
+
+        let path = Merkle::open(1, &leafs);
         assert!(Merkle::verify(&root, 1, &path, &vec![2]));
         assert!(!Merkle::verify(&root, 2, &path, &vec![2]));
     }
