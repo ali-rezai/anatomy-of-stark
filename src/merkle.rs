@@ -62,13 +62,18 @@ impl Merkle {
     }
 
     fn hash_data_array<T: Serialize>(data_array: &Vec<T>) -> Vec<Vec<u8>> {
-        data_array
+        let mut hash_data: Vec<Vec<u8>> = data_array
             .iter()
             .map(|data| {
                 let bytes = serde_pickle::to_vec(data, Default::default()).unwrap();
                 hash(&bytes)
             })
-            .collect()
+            .collect();
+        let len = hash_data.len();
+        if len & (len - 1) != 0 {
+            hash_data.resize_with(len.next_power_of_two(), || Vec::new());
+        }
+        hash_data
     }
 
     pub fn commit<T: Serialize>(data_array: &Vec<T>) -> Vec<u8> {

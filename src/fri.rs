@@ -44,6 +44,9 @@ impl FRI {
             codeword_length /= 2;
             num_rounds += 1;
         }
+        if num_rounds == 1 && codeword_length > self.expansion_factor {
+            num_rounds += 1;
+        }
         num_rounds
     }
 
@@ -342,7 +345,7 @@ mod tests {
         let f = Field::new(*PRIME);
 
         let fri = FRI::new(f.one(), f.generator(), 8, 2, 1);
-        assert_eq!(fri.num_rounds(), 1);
+        assert_eq!(fri.num_rounds(), 2);
 
         let fri = FRI::new(f.one(), f.generator(), 16, 2, 1);
         assert_eq!(fri.num_rounds(), 2);
@@ -362,18 +365,56 @@ mod tests {
             FieldElement::new(13.into(), f),
             FieldElement::new(7.into(), f),
             16,
+            7,
+            1,
+        );
+        let codeword = vec![
+            f.one(),
+            f.zero(),
+            f.one(),
+            f.zero(),
+            f.one(),
+            f.zero(),
+            f.one(),
+            f.zero(),
+            f.one(),
+            f.zero(),
+            f.one(),
+            f.zero(),
+            f.one(),
+            f.zero(),
+            f.one(),
+            f.zero(),
+        ];
+        let mut ps = ProofStream::new();
+        fri.prove(&codeword, &mut ps);
+        assert!(!fri.verify(&mut ps, vec![]));
+
+        let f = Field::new(7.into());
+        let fri = FRI::new(
+            FieldElement::new(1.into(), f),
+            FieldElement::new(5.into(), f),
+            6,
             1,
             1,
         );
 
-        let codeword = vec![f.zero(); fri.domain_length];
+        let p = Polynomial::new(vec![
+            FieldElement::new(3.into(), f),
+            FieldElement::new(4.into(), f),
+            FieldElement::new(*TWO, f),
+            f.one(),
+        ]);
+        let codeword = p.evaluate_domain(&vec![
+            f.zero(),
+            fri.omega,
+            &fri.omega ^ 2.into(),
+            &fri.omega ^ 3.into(),
+            &fri.omega ^ 4.into(),
+            &fri.omega ^ 5.into(),
+        ]);
         let mut ps = ProofStream::new();
         fri.prove(&codeword, &mut ps);
         assert!(fri.verify(&mut ps, vec![]));
-
-        let codeword = vec![f.one(); fri.domain_length];
-        let mut ps = ProofStream::new();
-        fri.prove(&codeword, &mut ps);
-        assert!(!fri.verify(&mut ps, vec![]));
     }
 }
