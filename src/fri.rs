@@ -76,10 +76,10 @@ impl FRI {
             codewords.push(codeword.clone());
             codeword = (0..codeword.len() / 2)
                 .map(|i| {
-                    &(&(&two.inv() * &(&one + &(&alpha / &(&offset * &(&omega ^ i.into())))))
-                        * &codeword[i])
+                    &(&(&(&one + &(&alpha / &(&offset * &(&omega ^ i.into())))) * &codeword[i])
                         + &(&(&one - &(&alpha / &(&offset * &(&omega ^ i.into()))))
-                            * &codeword[codeword.len() / 2 + i])
+                            * &codeword[codeword.len() / 2 + i]))
+                        * &two.inv()
                 })
                 .collect();
 
