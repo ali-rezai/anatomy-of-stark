@@ -405,14 +405,29 @@ mod tests {
             FieldElement::new(*TWO, f),
             f.one(),
         ]);
-        let codeword = p.evaluate_domain(&vec![
+        let codeword = p.evaluate_domain(&fri.eval_domain());
+        let mut ps = ProofStream::new();
+        fri.prove(&codeword, &mut ps);
+        assert!(fri.verify(&mut ps, vec![]));
+
+        let f = Field::new(17.into());
+        let fri = FRI::new(
+            FieldElement::new(1.into(), f),
+            FieldElement::new(6.into(), f),
+            16,
+            2,
+            2,
+        );
+
+        let p = Polynomial::new(vec![
+            f.one(),
             f.zero(),
-            fri.omega,
-            &fri.omega ^ 2.into(),
-            &fri.omega ^ 3.into(),
-            &fri.omega ^ 4.into(),
-            &fri.omega ^ 5.into(),
+            f.zero(),
+            f.zero(),
+            f.zero(),
+            FieldElement::new(*TWO, f),
         ]);
+        let codeword = p.evaluate_domain(&fri.eval_domain());
         let mut ps = ProofStream::new();
         fri.prove(&codeword, &mut ps);
         assert!(fri.verify(&mut ps, vec![]));
